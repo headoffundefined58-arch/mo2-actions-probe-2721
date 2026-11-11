@@ -1,0 +1,66 @@
+# Mirror build: the original repo's Actions were disabled by GitHub, so this
+# workflow lives in a fresh repo and checks out the patched source by ref.
+name: Build MO2 core (mirror)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Patched source ref (branch or sha)'
+        required: false
+        default: 'master'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout patched MO2 source
+        uses: actions/checkout@v4
+        with:
+          repository: headoffundefined58-arch/modorganizer
+          ref: ${{ inputs.sha || 'master' }}
+          token: ${{ github.token }}
+
+      - name: Build patched ModOrganizer 2
+        uses: ./.github/actions/mob-build
+        with:
+          mo2-owner: ModOrganizer2
+          mo2-branch: v2.5.2
+          mob-ref: v2.5.2
+          qt-version: 6.7.1
+          qt-modules: qtpositioning qtwebchannel qtwebengine qtwebsockets
+          mo2-third-parties: >-
+            7z zlib gtest libbsarch libloot openssl bzip2 python lz4 spdlog
+            boost boost-di sip pyqt pybind11 ss licenses explorerpp DirectXTex
+          mo2-dependencies: >-
+            usvfs cmake_common uibase githubpp bsatk esptk archive lootcli
+            game_gamebryo
+
+      - name: Collect the built executable
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist
+          echo "candidate executables:"
+          find . -type f -name 'ModOrganizer.exe' -print
+          exe=$(find . -type f -name 'ModOrganizer.exe' -print | grep -i vsbuild | head -1)
+          if [ -z "$exe" ]; then
+            exe=$(find . -type f -name 'ModOrganizer.exe' -print | head -1)
+          fi
+          test -n "$exe" || { echo "ModOrganizer.exe not found"; exit 1; }
+          cp "$exe" dist/ModOrganizer.exe
+          ls -l dist/ModOrganizer.exe
+
+      - name: Upload patched executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-modorganizer-exe
+          path: dist/ModOrganizer.exe
+          if-no-files-found: error
+          retention-days: 14
