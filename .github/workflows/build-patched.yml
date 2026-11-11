@@ -1,5 +1,15 @@
-# Mirror build: the original repo's Actions were disabled by GitHub, so this
-# workflow lives in a fresh repo and checks out the patched source by ref.
+# Mirror build channel.
+#
+# GitHub Actions is disabled on headoffundefined58-arch/modorganizer (a fork of
+# ModOrganizer2/modorganizer), so the patched binary is built here and the
+# sources are downloaded from the fork at the requested ref. The vendored
+# .github/actions/mob-build in this repository is the same action as in the
+# patched repo, minus its final "check out this repository" step, plus a step
+# that fetches the patched tree as a tarball.
+#
+# Artifact name matches the original workflow so tools/fetch_build.py --mirror
+# can download it unchanged.
+
 name: Build MO2 core (mirror)
 
 on:
@@ -8,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: 'Patched source ref (branch or sha)'
+        description: 'Patched source ref in the source repository (branch or sha)'
         required: false
         default: 'master'
 
@@ -20,12 +30,8 @@ jobs:
   build:
     runs-on: windows-2022
     steps:
-      - name: Checkout patched MO2 source
-        uses: actions/checkout@v4
-        with:
-          repository: headoffundefined58-arch/modorganizer
-          ref: ${{ inputs.sha || 'master' }}
-          token: ${{ github.token }}
+      # Needed so ./.github/actions/mob-build exists in this workspace.
+      - uses: actions/checkout@v4
 
       - name: Build patched ModOrganizer 2
         uses: ./.github/actions/mob-build
@@ -35,6 +41,8 @@ jobs:
           mob-ref: v2.5.2
           qt-version: 6.7.1
           qt-modules: qtpositioning qtwebchannel qtwebengine qtwebsockets
+          source-repo: headoffundefined58-arch/modorganizer
+          source-ref: ${{ inputs.sha || 'master' }}
           mo2-third-parties: >-
             7z zlib gtest libbsarch libloot openssl bzip2 python lz4 spdlog
             boost boost-di sip pyqt pybind11 ss licenses explorerpp DirectXTex
